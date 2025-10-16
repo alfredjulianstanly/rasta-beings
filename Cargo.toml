@@ -1,0 +1,15 @@
+[package]
+name = "rasta-beings"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+shuttle-axum = "0.50.0"
+shuttle-runtime = "0.50.0"
+tokio = "1.28"
+serde = { version = "1.0", features = ["derive"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["fs"] }
+axum-extra = { version = "0.9", features = ["multipart"] }
+base64 = "0.22"
