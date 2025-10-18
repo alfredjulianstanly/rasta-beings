@@ -5,6 +5,8 @@ use axum::{
 };
 use axum_extra::extract::Multipart;
 use serde::Deserialize;
+use sqlx::Row;
+use rust_decimal::Decimal;
 use crate::models::Product;
 use crate::state::AppState;
 use crate::templates::base_layout;
@@ -15,7 +17,15 @@ pub struct AdminQuery {
 }
 
 pub async fn admin_handler(State(state): State<AppState>, Query(query): Query<AdminQuery>) -> Html<String> {
-    let products = state.products.lock().unwrap();
+    let products = sqlx::query_as::<_, Product>(
+        "SELECT * FROM products ORDER BY id DESC"
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_else(|e| {
+        println!("Error fetching products: {:?}", e);
+        vec![]
+    });
     
     let success_modal = if query.success.is_some() {
         r##"<div id="success-toast" style="position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 20px 30px; border-radius: 12px; box-shadow: 0 8px 30px rgba(39, 174, 96, 0.4); z-index: 1000; animation: slideIn 0.5s ease; border-left: 5px solid #27ae60;">
@@ -51,7 +61,7 @@ pub async fn admin_handler(State(state): State<AppState>, Query(query): Query<Ad
     };
     
     let mut products_list = String::new();
-    for product in products.values() {
+    for product in &products {
         let display_icon = if product.icon.starts_with("data:image") {
             format!(r##"<img src="{}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 50%; margin-right: 15px; border: 2px solid var(--secondary-gold);" alt="{}">"##, product.icon, product.name)
         } else {
@@ -63,9 +73,9 @@ pub async fn admin_handler(State(state): State<AppState>, Query(query): Query<Ad
                 <div style="display: flex; align-items: center; flex: 1;">
                     {}
                     <div>
-                        <h4 style="color: var(--secondary-gold); margin-bottom: 8px; font-family: 'Cinzel', serif;">{}</h4>
+                        <h4 style="color: var(--secondary-gold); margin-bottom: 8px; font-family: 'Philosopher', serif;">{}</h4>
                         <p style="color: var(--light); opacity: 0.8; font-size: 0.9rem;">{}</p>
-                        <p style="font-weight: bold; color: var(--rasta-gold); margin-top: 8px; font-size: 1.1rem;">${}</p>
+                        <p style="font-weight: bold; color: var(--rasta-gold); margin-top: 8px; font-size: 1.1rem;">₹{}</p>
                     </div>
                 </div>
                 <form method="post" action="/admin/products/delete">
@@ -81,42 +91,42 @@ pub async fn admin_handler(State(state): State<AppState>, Query(query): Query<Ad
         r##"{}
         <div class="rasta-accent" style="margin-bottom: 30px;"></div>
         
-        <h2 style="color: var(--secondary-gold); font-size: 2.5rem; margin-bottom: 30px; font-family: 'Cinzel', serif; text-align: center;">
+        <h2 style="color: var(--secondary-gold); font-size: 2.5rem; margin-bottom: 30px; font-family: 'Philosopher', serif; text-align: center;">
             Admin Panel
         </h2>
         
         <div style="background: rgba(255, 255, 255, 0.03); padding: 35px; border-radius: 15px; margin-bottom: 40px; border: 1px solid rgba(212, 175, 55, 0.3); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);">
             <div class="rasta-accent" style="margin-bottom: 25px;"></div>
-            <h3 style="color: var(--secondary-gold); margin-bottom: 25px; font-family: 'Cinzel', serif; font-size: 1.5rem;">Add New Product</h3>
+            <h3 style="color: var(--secondary-gold); margin-bottom: 25px; font-family: 'Philosopher', serif; font-size: 1.5rem;">Add New Product</h3>
             <form id="product-form" method="post" action="/admin/products" enctype="multipart/form-data">
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 10px; color: var(--rasta-gold); font-weight: 600; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Product Name</label>
-                    <input type="text" name="name" id="product-name" required style="width: 100%; padding: 14px; border: 2px solid rgba(243, 156, 18, 0.3); border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--light); font-size: 1rem; transition: all 0.3s ease;" onfocus="this.style.borderColor='var(--rasta-gold)'; this.style.background='rgba(255, 255, 255, 0.08)';" onblur="this.style.borderColor='rgba(243, 156, 18, 0.3)'; this.style.background='rgba(255, 255, 255, 0.05)';">
+                    <input type="text" name="name" id="product-name" required style="width: 100%; padding: 14px; border: 2px solid rgba(243, 156, 18, 0.3); border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--light); font-size: 1rem; transition: all 0.3s ease;">
                 </div>
                 
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 10px; color: var(--rasta-gold); font-weight: 600; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Description</label>
-                    <textarea name="description" id="product-desc" required style="width: 100%; padding: 14px; border: 2px solid rgba(243, 156, 18, 0.3); border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--light); font-size: 1rem; min-height: 120px; resize: vertical; transition: all 0.3s ease; font-family: 'Raleway', sans-serif;" onfocus="this.style.borderColor='var(--rasta-gold)'; this.style.background='rgba(255, 255, 255, 0.08)';" onblur="this.style.borderColor='rgba(243, 156, 18, 0.3)'; this.style.background='rgba(255, 255, 255, 0.05)';"></textarea>
+                    <textarea name="description" id="product-desc" required style="width: 100%; padding: 14px; border: 2px solid rgba(243, 156, 18, 0.3); border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--light); font-size: 1rem; min-height: 120px; resize: vertical; font-family: 'Raleway', sans-serif;"></textarea>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 10px; color: var(--rasta-gold); font-weight: 600; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Price ($)</label>
-                    <input type="number" name="price" id="product-price" step="0.01" required style="width: 100%; padding: 14px; border: 2px solid rgba(243, 156, 18, 0.3); border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--light); font-size: 1rem; transition: all 0.3s ease;" onfocus="this.style.borderColor='var(--rasta-gold)'; this.style.background='rgba(255, 255, 255, 0.08)';" onblur="this.style.borderColor='rgba(243, 156, 18, 0.3)'; this.style.background='rgba(255, 255, 255, 0.05)';">
+                    <label style="display: block; margin-bottom: 10px; color: var(--rasta-gold); font-weight: 600; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Price (₹)</label>
+                    <input type="number" name="price" id="product-price" step="0.01" required style="width: 100%; padding: 14px; border: 2px solid rgba(243, 156, 18, 0.3); border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--light); font-size: 1rem;">
                 </div>
                 
                 <div style="margin-bottom: 25px;">
                     <label style="display: block; margin-bottom: 10px; color: var(--rasta-gold); font-weight: 600; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;">Product Image</label>
-                    <input type="file" id="image-input" name="image" accept="image/*" required style="width: 100%; padding: 14px; border: 2px solid rgba(243, 156, 18, 0.3); border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--light); font-size: 1rem; transition: all 0.3s ease;" onfocus="this.style.borderColor='var(--rasta-gold)';" onblur="this.style.borderColor='rgba(243, 156, 18, 0.3)';">
+                    <input type="file" id="image-input" name="image" accept="image/*" required style="width: 100%; padding: 14px; border: 2px solid rgba(243, 156, 18, 0.3); border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--light); font-size: 1rem;">
                     <div id="file-info" style="margin-top: 12px; color: var(--rasta-green); font-size: 0.9rem; font-weight: 500;"></div>
                 </div>
                 
-                <button id="submit-btn" type="submit" style="width: 100%; padding: 16px; background: linear-gradient(135deg, var(--secondary-gold) 0%, var(--rasta-gold) 100%); color: var(--primary); border: none; border-radius: 10px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; font-size: 1rem; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 6px 25px rgba(243, 156, 18, 0.5)';" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(243, 156, 18, 0.3)';">
+                <button id="submit-btn" type="submit" style="width: 100%; padding: 16px; background: linear-gradient(135deg, var(--secondary-gold) 0%, var(--rasta-gold) 100%); color: var(--primary); border: none; border-radius: 10px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; font-size: 1rem;">
                     Add Product
                 </button>
                 
                 <div id="loading" style="display: none; text-align: center; margin-top: 25px;">
                     <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid rgba(243, 156, 18, 0.2); border-top-color: var(--rasta-gold); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    <p style="color: var(--rasta-gold); margin-top: 15px; font-weight: 600; letter-spacing: 1px;">Uploading... One love 🌿</p>
+                    <p style="color: var(--rasta-gold); margin-top: 15px; font-weight: 600;">Uploading... 🌿</p>
                 </div>
             </form>
             
@@ -138,11 +148,6 @@ pub async fn admin_handler(State(state): State<AppState>, Query(query): Query<Ad
                     if (file) {{
                         const sizeMB = (file.size / 1024 / 1024).toFixed(2);
                         fileInfo.innerHTML = `<span style="color: var(--rasta-green);">✓</span> Selected: ${{file.name}} (${{sizeMB}} MB)`;
-                        
-                        if (file.size > 10 * 1024 * 1024) {{
-                            fileInfo.style.color = 'var(--rasta-red)';
-                            fileInfo.innerHTML = `<span style="color: var(--rasta-red);">⚠</span> Large file (${{sizeMB}} MB) - May take time to upload`;
-                        }}
                     }}
                 }});
                 
@@ -155,7 +160,7 @@ pub async fn admin_handler(State(state): State<AppState>, Query(query): Query<Ad
         
         <div class="rasta-accent" style="margin: 40px 0;"></div>
         
-        <h3 style="color: var(--secondary-gold); margin-bottom: 25px; font-family: 'Cinzel', serif; font-size: 1.8rem; text-align: center;">
+        <h3 style="color: var(--secondary-gold); margin-bottom: 25px; font-family: 'Philosopher', serif; font-size: 1.8rem; text-align: center;">
             Current Products ({})
         </h3>
         <div style="margin-top: 20px;">
@@ -175,7 +180,7 @@ pub async fn add_product_handler(
 ) -> Redirect {
     let mut name = String::new();
     let mut description = String::new();
-    let mut price = 0.0;
+    let mut price_f64 = 0.0;
     let mut image_base64 = String::new();
     
     println!("Starting multipart processing...");
@@ -186,80 +191,68 @@ pub async fn add_product_handler(
                 println!("Processing field: {}", n);
                 n.to_string()
             },
-            None => {
-                println!("Field with no name, skipping");
-                continue;
-            }
+            None => continue,
         };
         
         match field_name.as_str() {
             "name" => {
-                match field.text().await {
-                    Ok(text) => {
-                        println!("Got name: {}", text);
-                        name = text;
-                    },
-                    Err(e) => println!("Error reading name: {:?}", e),
+                if let Ok(text) = field.text().await {
+                    println!("Got name: {}", text);
+                    name = text;
                 }
             }
             "description" => {
-                match field.text().await {
-                    Ok(text) => {
-                        println!("Got description: {} chars", text.len());
-                        description = text;
-                    },
-                    Err(e) => println!("Error reading description: {:?}", e),
+                if let Ok(text) = field.text().await {
+                    println!("Got description: {} chars", text.len());
+                    description = text;
                 }
             }
             "price" => {
-                match field.text().await {
-                    Ok(text) => {
-                        price = text.parse().unwrap_or(0.0);
-                        println!("Got price: {}", price);
-                    },
-                    Err(e) => println!("Error reading price: {:?}", e),
+                if let Ok(text) = field.text().await {
+                    price_f64 = text.parse().unwrap_or(0.0);
+                    println!("Got price: {}", price_f64);
                 }
             }
             "image" => {
-                match field.bytes().await {
-                    Ok(data) => {
-                        println!("Got image: {} bytes", data.len());
-                        image_base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
-                        println!("Encoded to base64: {} chars", image_base64.len());
-                    },
-                    Err(e) => {
-                        println!("Error reading image: {:?}", e);
-                    }
+                if let Ok(data) = field.bytes().await {
+                    println!("Got image: {} bytes", data.len());
+                    image_base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
+                    println!("Encoded to base64: {} chars", image_base64.len());
                 }
             }
-            _ => {
-                println!("Unknown field: {}", field_name);
-            }
+            _ => {}
         }
     }
     
     println!("Multipart processing complete");
     println!("Name: {}, Desc length: {}, Price: {}, Image length: {}", 
-             name, description.len(), price, image_base64.len());
+             name, description.len(), price_f64, image_base64.len());
     
-    if !name.is_empty() && !description.is_empty() && !image_base64.is_empty() && price > 0.0 {
-        let mut products = state.products.lock().unwrap();
-        let mut next_id = state.next_product_id.lock().unwrap();
+    if !name.is_empty() && !description.is_empty() && !image_base64.is_empty() && price_f64 > 0.0 {
+        let icon = format!("data:image/jpeg;base64,{}", image_base64);
+        let price = Decimal::from_f64_retain(price_f64).unwrap_or_default();
         
-        let new_product = Product::new(
-            *next_id,
-            name,
-            description,
-            price,
-            format!("data:image/jpeg;base64,{}", image_base64),
-        );
+        let result = sqlx::query(
+            "INSERT INTO products (name, description, price, icon) VALUES ($1, $2, $3, $4) RETURNING id"
+        )
+        .bind(&name)
+        .bind(&description)
+        .bind(price)
+        .bind(&icon)
+        .fetch_one(&state.db)
+        .await;
         
-        println!("Adding product with ID: {}", *next_id);
-        products.insert(*next_id, new_product);
-        *next_id += 1;
-        println!("Product added successfully!");
-        
-        Redirect::to("/admin?success=true")
+        match result {
+            Ok(row) => {
+                let id: i32 = row.get("id");
+                println!("Product added successfully with ID: {}", id);
+                Redirect::to("/admin?success=true")
+            }
+            Err(e) => {
+                println!("Error inserting product: {:?}", e);
+                Redirect::to("/admin")
+            }
+        }
     } else {
         println!("Validation failed - missing required fields");
         Redirect::to("/admin")
@@ -268,16 +261,22 @@ pub async fn add_product_handler(
 
 #[derive(Deserialize)]
 pub struct DeleteProductForm {
-    product_id: u64,
+    product_id: i32,
 }
 
 pub async fn delete_product_handler(
     State(state): State<AppState>,
     Form(form): Form<DeleteProductForm>,
 ) -> Redirect {
-    let mut products = state.products.lock().unwrap();
-    products.remove(&form.product_id);
-    println!("Deleted product: {}", form.product_id);
+    let result = sqlx::query("DELETE FROM products WHERE id = $1")
+        .bind(form.product_id)
+        .execute(&state.db)
+        .await;
+    
+    match result {
+        Ok(_) => println!("Deleted product: {}", form.product_id),
+        Err(e) => println!("Error deleting product: {:?}", e),
+    }
     
     Redirect::to("/admin")
 }

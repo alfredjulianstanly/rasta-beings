@@ -1,17 +1,27 @@
 use axum::{extract::State, response::Html};
 use crate::state::AppState;
+use crate::models::Product;
 use crate::templates::{base_layout, product_card};
 
 pub async fn shop_handler(State(state): State<AppState>) -> Html<String> {
-    let products = state.products.lock().unwrap();
+    // Fetch all products from database
+    let products = sqlx::query_as::<_, Product>(
+        "SELECT * FROM products ORDER BY id DESC"
+    )
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_else(|e| {
+        println!("Error fetching products: {:?}", e);
+        vec![]
+    });
     
     let mut product_cards = String::new();
-    for product in products.values() {
+    for product in &products {
         product_cards.push_str(&product_card(product));
     }
     
     let content = format!(
-        r##"<div style="text-align: center; margin-bottom: 40px; position: relative;">
+        r##"<div style="text-align: center; margin-bottom: 40px;">
             <div style="font-size: 2rem; margin-bottom: 15px; opacity: 0.6;">✊🏿</div>
             <div class="rasta-accent" style="width: 200px; margin: 0 auto 20px;"></div>
             <h2 style="color: var(--rasta-gold); font-size: 3rem; margin-bottom: 15px; font-family: 'Philosopher', serif; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);">

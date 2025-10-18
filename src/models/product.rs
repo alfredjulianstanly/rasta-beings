@@ -1,22 +1,29 @@
 use serde::{Deserialize, Serialize};
+use rust_decimal::Decimal;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Product {
-    pub id: u64,
+    pub id: i32,
     pub name: String,
     pub description: String,
-    pub price: f64,
+    pub price: Decimal,
     pub icon: String,
-}
-
-impl Product {
-    pub fn new(id: u64, name: String, description: String, price: f64, icon: String) -> Self {
-        Self {
-            id,
-            name,
-            description,
-            price,
-            icon,
-        }
-    }
+    
+    pub sku: Option<String>,
+    pub category: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub sizes: Option<Vec<String>>,
+    pub colors: Option<Vec<String>>,
+    
+    pub mrp: Option<Decimal>,
+    pub discount_percent: Option<Decimal>,
+    pub cost_price: Option<Decimal>,
+    pub profit_margin: Option<Decimal>,
+    pub tax_percent: Option<Decimal>,
+    
+    pub stock_quantity: Option<i32>,
+    pub supplier_name: Option<String>,
+    pub supplier_contact: Option<String>,
+    pub purchase_date: Option<String>,
+    pub invoice_number: Option<String>,
 }
