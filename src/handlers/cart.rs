@@ -252,8 +252,11 @@ fn render_cart_items(items: &[sqlx::postgres::PgRow]) -> String {
         let subtotal = price * Decimal::from(quantity);
         total += subtotal;
         
-        let thumbnail = if icon.starts_with("data:image") {
-            format!(r##"<img src="{}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 2px solid var(--rasta-gold);">"##, icon)
+        // Render image properly based on URL type
+        let thumbnail = if icon.starts_with("http") {
+            format!(r##"<img src="{}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 2px solid var(--rasta-gold);" alt="{}">"##, icon, name)
+        } else if icon.starts_with("data:image") {
+            format!(r##"<img src="{}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 2px solid var(--rasta-gold);" alt="{}">"##, icon, name)
         } else {
             format!(r##"<div style="font-size: 3rem;">{}</div>"##, icon)
         };

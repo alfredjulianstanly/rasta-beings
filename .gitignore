@@ -2,3 +2,6 @@
 /target
 .shuttle*
 Secrets*.toml
+
+# R2 Secrets
+Secrets.toml
